@@ -37,3 +37,46 @@ Apply these rules whenever producing Mermaid diagrams.
 ## `securityLevel: 'loose'`
 
 The preview initialises Mermaid with `securityLevel: 'loose'` so common label markup (`<br/>`, `<b>`, etc.) renders. This is safe because the pipeline is strictly local — the script tag is inlined from a vendored bundle, never fetched at runtime.
+
+## Examples
+
+### Canonical fenced block in a markdown file
+
+````markdown
+```mermaid
+flowchart LR
+  A[user writes .md] --> B{fence present?}
+  B -- yes --> C[preview renders]
+  B -- no  --> D[hook exits silently]
+```
+````
+
+### Validation before writing
+
+Call the MCP tool with the raw diagram body (no fence lines). Empty response = valid; any non-empty response is an error that must be fixed before writing.
+
+```
+mcp__mermaider__validate_syntax({
+  "diagram_code": "flowchart LR\n  A --> B\n  B --> C"
+})
+```
+
+Iterate: if the response lists an error, adjust the diagram and re-invoke until the response is empty.
+
+### Scratch file for exploratory charts
+
+If a chart is not destined for a durable document, still write it to a file so the preview hook fires:
+
+```bash
+scratch=~/.claude/previews/scratch-$(date -u +%Y%m%dT%H%M%S).md
+printf '%s\n' '```mermaid' 'flowchart LR' '  A --> B' '```' > "$scratch"
+```
+
+## Scope and cross-references
+
+- **Applies to**: Claude-authored Markdown destined for a file — READMEs, design notes, plans, docs.
+- **Does not apply to**: pure chat-only diagrams (they never trigger the preview hook anyway — write them to a file via the scratch convention above instead).
+- **Related artifacts**:
+  - The enclosing `mermaid-preview` plugin — PostToolUse hook + vendored Mermaid bundle at `vendor/mermaid.min.js`.
+  - `mcp__mermaider__validate_syntax` — the validator MCP tool used in the workflow above.
+  - Preview output: `~/.claude/previews/preview-<slug>.html`; hook log: `~/.claude/previews/preview.log`.

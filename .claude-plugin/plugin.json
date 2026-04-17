@@ -1,6 +1,6 @@
 {
   "name": "mermaid-preview",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Auto-preview Mermaid diagrams in the browser on Write/Edit/MultiEdit/NotebookEdit. Inlined Mermaid bundle (offline-safe), dark-mode aware, auto-reload on source change, per-file preview with LRU retention.",
   "author": {
     "name": "xiaolai"
