@@ -26,6 +26,28 @@ Apply these rules whenever producing Mermaid diagrams.
 - The `mermaid-preview` hook (PostToolUse, on `Write|Edit|MultiEdit|NotebookEdit`) detects these fences in files with extensions `.md|.mmd|.mdx|.markdown|.ipynb` and renders a live browser preview.
 - Never output mermaid charts inline in conversation only — also write them to a file so the preview hook triggers. For throwaway charts use a scratch path like `~/.claude/previews/scratch-*.md`.
 
+## Label formatting (common pitfalls)
+
+- **`\n` is NOT a line break.** Mermaid renders `\n` as the two literal characters `\` and `n`. Never emit `\n` inside a node, edge, or subgraph label. This is the single most common mermaid authoring mistake.
+- For line breaks, use `<br/>` (or `<br>`): `A["Line one<br/>Line two"]`.
+- When a label contains special characters (`"`, `<`, `>`, `(`, `)`, `{`, `}`, `[`, `]`, `&`, `|`, `#`, `:`), wrap the whole label in **double quotes**: `B["risky: a<b & c>d"]`. Unquoted labels break the parser on these.
+- Edge labels with spaces also need quoting: ``A -- "deliberate dose" --> B`` or the pipe form `A -->|"deliberate dose"| B`.
+- Keep labels terse. A three-line label in a node almost always means the node is doing too much — split it.
+
+### Right vs wrong line-break
+
+Wrong (renders `\n` as literal characters):
+
+```
+A[Doctor's office\n— hold the needle —]
+```
+
+Right (renders as two lines):
+
+```
+A["Doctor's office<br/>— hold the needle —"]
+```
+
 ## Preview behavior (what the user sees)
 
 - Each source file gets a stable preview HTML keyed by a hash of its path (per-file, so multiple files can be previewed in parallel).
@@ -45,11 +67,13 @@ The preview initialises Mermaid with `securityLevel: 'loose'` so common label ma
 ````markdown
 ```mermaid
 flowchart LR
-  A[user writes .md] --> B{fence present?}
-  B -- yes --> C[preview renders]
-  B -- no  --> D[hook exits silently]
+  A["Doctor's office<br/>— hold the needle —"] -->|deliberate dose| B["Threat met<br/>at low strength"]
+  B --> C["Pattern built"]
+  C --> D["Full challenge arrives<br/>body is ready"]
 ```
 ````
+
+Key habits visible above: double-quoted labels, `<br/>` (not `\n`) for line breaks, quoted edge label with spaces.
 
 ### Validation before writing
 
