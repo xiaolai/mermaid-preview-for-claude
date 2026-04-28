@@ -49,4 +49,4 @@ Bundled skill `mermaid-charts` carries authoring guidelines: validate via `mcp__
 
 ## License
 
-MIT — see `LICENSE`.
+ISC — see `LICENSE`.
