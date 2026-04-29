@@ -14,6 +14,8 @@ Auto-preview Mermaid diagrams in the browser whenever Claude Code writes to a ma
 /plugin install mermaid-preview@xiaolai
 ```
 
+> **Install fails with "Plugin not found in marketplace 'xiaolai'"?** Your local marketplace clone is stale. Run `claude plugin marketplace update xiaolai` and retry — `plugin install` does not auto-refresh.
+
 No further configuration needed. The plugin registers a `PostToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit` and writes previews to `~/.claude/previews/`.
 
 ## How it works
