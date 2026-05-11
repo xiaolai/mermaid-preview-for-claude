@@ -1,5 +1,7 @@
 # mermaid-preview
 
+[![Validated by NLPM](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/xiaolai/mermaid-preview-for-claude/main/nlpm-badge.json)](https://github.com/xiaolai/mermaid-preview-for-claude/blob/main/nlpm-badge.json)
+
 Auto-preview Mermaid diagrams in the browser whenever Claude Code writes to a markdown-ish file.
 
 - **Offline-safe.** Mermaid bundle (`@11.4.1`) is vendored and inlined into each preview HTML, so no network call is ever made at render time.
