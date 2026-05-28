@@ -7,7 +7,9 @@
 # ~/.claude/previews/ and opens it in the default browser.
 #
 # Subsequent writes update the same preview HTML; an in-page poller compares
-# content hashes and reloads the browser tab automatically.
+# content hashes and reloads the browser tab automatically. The browser is
+# opened only on the first render of each file's preview (open-once); set
+# MERMAID_PREVIEW_ALWAYS_OPEN=1 to open a tab on every write instead.
 
 set +e
 
@@ -45,6 +47,15 @@ grep -q '```mermaid' "$file_path" 2>/dev/null || exit 0
 
 slug=$(printf '%s' "$file_path" | shasum -a 256 | cut -c1-12)
 preview="$PREVIEWS_DIR/preview-$slug.html"
+
+# Open the browser only on the first render of this file's preview. Capture
+# existence before the (re)write below so a rewrite of an existing preview is
+# distinguishable from a first render.
+if [ -f "$preview" ]; then
+  preview_existed=1
+else
+  preview_existed=0
+fi
 
 python3 - "$file_path" "$VENDOR" "$preview" <<'PYEOF'
 import hashlib
@@ -183,12 +194,25 @@ ls -t "$PREVIEWS_DIR"/preview-*.html 2>/dev/null | tail -n +21 | xargs rm -f 2>/
 
 log "rendered $file_path -> $preview"
 
-# Open in default browser (non-blocking). Platform-specific command; macOS
-# today, others as the plugin expands.
-case "$(uname)" in
-  Darwin) open "$preview" >/dev/null 2>&1 & ;;
-  Linux)  command -v xdg-open >/dev/null 2>&1 && xdg-open "$preview" >/dev/null 2>&1 & ;;
-  *)      log "no opener known for $(uname); preview at $preview" ;;
+# Decide whether to open a browser tab. Default is open-once: open only on the
+# first render of this file's preview, then let the in-page poller reload the
+# existing tab on subsequent edits (no new tab per write). Set
+# MERMAID_PREVIEW_ALWAYS_OPEN=1 (or true/yes/on) to force-open every time.
+case "${MERMAID_PREVIEW_ALWAYS_OPEN:-}" in
+  1|true|yes|on) always_open=1 ;;
+  *)             always_open=0 ;;
 esac
+
+if [ "$preview_existed" = "0" ] || [ "$always_open" = "1" ]; then
+  # Open in default browser (non-blocking). Platform-specific command; macOS
+  # today, others as the plugin expands.
+  case "$(uname)" in
+    Darwin) open "$preview" >/dev/null 2>&1 & ;;
+    Linux)  command -v xdg-open >/dev/null 2>&1 && xdg-open "$preview" >/dev/null 2>&1 & ;;
+    *)      log "no opener known for $(uname); preview at $preview" ;;
+  esac
+else
+  log "updated $preview (open-once; in-page poller will reload the tab)"
+fi
 
 exit 0

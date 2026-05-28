@@ -8,6 +8,7 @@ Auto-preview Mermaid diagrams in the browser whenever Claude Code writes to a ma
 - **Dark-mode aware.** Both the page chrome and the Mermaid theme follow `prefers-color-scheme`.
 - **Auto-reload without scroll loss.** Each preview polls its own content hash and reloads only when the source changes.
 - **Per-file previews.** Every source file gets its own preview HTML keyed by a path hash; previews for different files coexist instead of clobbering each other.
+- **Opens once.** The browser tab opens on a preview's first render; later edits to the same file rewrite that HTML and the poller reloads the open tab instead of spawning a new one.
 - **Injection-safe.** Diagram source is passed to the page as a JSON array and applied via `textContent`; `</script>` literals inside the bundle are pre-escaped.
 
 ## Install
@@ -18,7 +19,7 @@ Auto-preview Mermaid diagrams in the browser whenever Claude Code writes to a ma
 
 > **Install fails with "Plugin not found in marketplace 'xiaolai'"?** Your local marketplace clone is stale. Run `claude plugin marketplace update xiaolai` and retry — `plugin install` does not auto-refresh.
 
-No further configuration needed. The plugin registers a `PostToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit` and writes previews to `~/.claude/previews/`.
+No required configuration. The plugin registers a `PostToolUse` hook on `Write|Edit|MultiEdit|NotebookEdit` and writes previews to `~/.claude/previews/`. The browser opens once per file (on first render); set `MERMAID_PREVIEW_ALWAYS_OPEN=1` if you want a tab opened on every write instead.
 
 ## How it works
 
@@ -28,14 +29,14 @@ flowchart LR
   B -- ext matches --> C[extract ```mermaid blocks]
   C --> D[embed as JSON + inline Mermaid bundle]
   D --> E[write ~/.claude/previews/preview-&lt;slug&gt;.html]
-  E --> F[open in default browser]
+  E --> F[open browser on first render]
   F --> G[page polls self, reloads on hash change]
 ```
 
 1. Hook reads the tool payload, extracts the edited file path.
 2. Exits silently unless the extension is `.md`, `.mmd`, `.mdx`, `.markdown`, or `.ipynb` and the file contains a ` ```mermaid ` fence.
 3. Python extracts every mermaid block, computes a SHA-256 content hash, inlines the vendored Mermaid bundle, and emits a single self-contained HTML file at `~/.claude/previews/preview-<12-char path hash>.html`.
-4. `open` (macOS) / `xdg-open` (Linux) brings the page up in the default browser. The page builds `<pre class="mermaid">` elements via `textContent` (no HTML injection) and calls `mermaid.run()`.
+4. On the **first** render of a file's preview, `open` (macOS) / `xdg-open` (Linux) brings the page up in the default browser; later edits rewrite the same file and let the in-page poller reload the existing tab. Set `MERMAID_PREVIEW_ALWAYS_OPEN=1` (or `true`/`yes`/`on`) to open a tab on every write. The page builds `<pre class="mermaid">` elements via `textContent` (no HTML injection) and calls `mermaid.run()`.
 5. An in-page setInterval fetches the HTML itself every 1.5 s. If the embedded `data-hash` differs from the one the page loaded with, it calls `location.reload()`. Scroll, zoom, and tab focus survive between edits.
 
 Logs go to `~/.claude/previews/preview.log`. LRU retention keeps the newest 20 previews.
