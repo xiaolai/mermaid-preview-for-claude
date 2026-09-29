@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/mermaid-preview.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/mermaid-preview.sh\"",
             "timeout": 10000
           }
         ]
