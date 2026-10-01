@@ -55,3 +55,11 @@ Bundled skill `mermaid-charts` carries authoring guidelines: validate via `mcp__
 ## License
 
 ISC — see `LICENSE`.
+
+## Preview boundaries
+
+The synchronous hook has a 10-second deadline. Markdown fences, raw `.mmd` source and Mermaid
+fences inside notebook Markdown cells are supported. Removing the last diagram refreshes an existing
+preview to an empty state. Writes replace the HTML atomically. `MERMAID_PREVIEW_NO_OPEN=1`
+creates previews without opening a browser; `MERMAID_PREVIEW_DIR` selects a destination directory.
+Browser file-URL restrictions can prevent automatic polling; manual reload remains available.

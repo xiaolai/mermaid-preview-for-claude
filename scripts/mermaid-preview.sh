@@ -15,7 +15,7 @@ set +e
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 VENDOR="$PLUGIN_ROOT/vendor/mermaid.min.js"
-PREVIEWS_DIR="$HOME/.claude/previews"
+PREVIEWS_DIR="${MERMAID_PREVIEW_DIR:-$HOME/.claude/previews}"
 
 mkdir -p "$PREVIEWS_DIR"
 exec 2>>"$PREVIEWS_DIR/preview.log"
@@ -43,7 +43,6 @@ case "$file_path" in
   *) exit 0 ;;
 esac
 
-grep -q '```mermaid' "$file_path" 2>/dev/null || exit 0
 
 slug=$(printf '%s' "$file_path" | shasum -a 256 | cut -c1-12)
 preview="$PREVIEWS_DIR/preview-$slug.html"
@@ -73,12 +72,21 @@ except Exception as e:
     sys.stderr.write(f"read error: {e}\n")
     sys.exit(1)
 
-blocks = re.findall(
-    r"^```mermaid[^\n]*\n(.*?)^```\s*$",
-    src,
-    re.DOTALL | re.MULTILINE,
-)
-if not blocks:
+def fenced(text):
+    return re.findall(r"^```mermaid[^\n]*\n(.*?)^```\s*$", text, re.DOTALL | re.MULTILINE)
+
+if file_path.endswith('.mmd'):
+    blocks = [src.strip()] if src.strip() else []
+elif file_path.endswith('.ipynb'):
+    try:
+        notebook = json.loads(src)
+        blocks = [block for cell in notebook.get('cells', []) if cell.get('cell_type') == 'markdown'
+                  for block in fenced(''.join(cell.get('source', [])))]
+    except (ValueError, TypeError):
+        sys.exit(1)
+else:
+    blocks = fenced(src)
+if not blocks and not os.path.exists(preview_path):
     sys.exit(1)
 
 # JSON is a subset of JS literals; escape "</" so stray closing tags inside
@@ -158,7 +166,7 @@ html_out = f"""<!DOCTYPE html>
     mermaid.initialize({{
       startOnLoad: false,
       theme: dark ? 'dark' : 'default',
-      securityLevel: 'loose',
+      securityLevel: 'strict',
     }});
     mermaid.run().catch((e) => showError('Mermaid error: ' + (e && e.message ? e.message : e)));
   }} else {{
@@ -180,8 +188,14 @@ html_out = f"""<!DOCTYPE html>
 </body></html>
 """
 
-with open(preview_path, "w", encoding="utf-8") as fh:
-    fh.write(html_out)
+import tempfile
+fd, temporary = tempfile.mkstemp(prefix='.preview-', dir=os.path.dirname(preview_path))
+try:
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        fh.write(html_out)
+    os.replace(temporary, preview_path)
+finally:
+    if os.path.exists(temporary): os.unlink(temporary)
 PYEOF
 
 if [ $? -ne 0 ]; then
@@ -190,7 +204,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # LRU prune — keep newest 20 preview files
-ls -t "$PREVIEWS_DIR"/preview-*.html 2>/dev/null | tail -n +21 | xargs rm -f 2>/dev/null
+python3 - "$PREVIEWS_DIR" <<'PRUNE'
+import pathlib, sys
+files = sorted(pathlib.Path(sys.argv[1]).glob('preview-*.html'), key=lambda p: p.stat().st_mtime, reverse=True)
+for p in files[20:]:
+    try: p.unlink()
+    except FileNotFoundError: pass
+PRUNE
 
 log "rendered $file_path -> $preview"
 
@@ -203,7 +223,9 @@ case "${MERMAID_PREVIEW_ALWAYS_OPEN:-}" in
   *)             always_open=0 ;;
 esac
 
-if [ "$preview_existed" = "0" ] || [ "$always_open" = "1" ]; then
+if [ "${MERMAID_PREVIEW_NO_OPEN:-0}" = "1" ]; then
+  log "headless preview at $preview"
+elif [ "$preview_existed" = "0" ] || [ "$always_open" = "1" ]; then
   # Open in default browser (non-blocking). Platform-specific command; macOS
   # today, others as the plugin expands.
   case "$(uname)" in

@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/mermaid-preview.sh\"",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
